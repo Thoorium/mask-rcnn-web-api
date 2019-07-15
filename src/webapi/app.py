@@ -5,6 +5,7 @@ from flask import jsonify
 import os
 import io
 import sys
+import json
 import numpy as np
 import base64
 from PIL import Image
@@ -46,7 +47,8 @@ def predict(version:int, model_name:str, action:str):
     if version != 1 or model_name != MODEL_NAME or action != "predict":
         return "Not implemented", 501
 
-    b64_image = request.data
+    jdata = json.loads(request.data)
+    b64_image = jdata['instances'][0]['b64']
     image_data = base64.b64decode(b64_image)
     image_bytes = Image.open(io.BytesIO(image_data))
     image_array = np.array(image_bytes)
@@ -54,7 +56,10 @@ def predict(version:int, model_name:str, action:str):
     global _graph
     with _graph.as_default():
         results = _model.detect([image_array], verbose=1)
-    return str(results)
+    #results[0]['masks']=[]
+    json_out = '{"instances": [' + str(results).replace("array(", "").replace(")", "").replace("'", "\"").replace("False", "false").replace("True", "true").replace(", dtype=float32","") + ']}'
+    #print(json_out)
+    return json_out
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8501,debug=False)
